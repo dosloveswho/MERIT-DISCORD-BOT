@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.awardSubmissionMerit = awardSubmissionMerit;
 exports.awardAutomaticMerit = awardAutomaticMerit;
 exports.applyManualMerit = applyManualMerit;
+exports.setManualMerit = setManualMerit;
 const databaseService_1 = require("./databaseService");
 const meritLogger_1 = require("./meritLogger");
 const config_1 = require("../config/config");
@@ -97,6 +98,31 @@ async function applyManualMerit(params) {
         discordUserId: params.discordUserId,
         amount: result.actualAmount,
         reason,
+        givenBy: params.givenBy,
+        previousTotal: result.previousTotal,
+        newTotal: result.newTotal,
+    });
+    return result;
+}
+/**
+ * Sets a user's merit total to an exact value via /setmerit, rather than
+ * adding/subtracting a delta. Not idempotent by design (each invocation
+ * is a distinct, intentional admin action), but still routed through the
+ * same locked RPC pattern as awardMerit so total_merits is never
+ * corrupted by concurrent writes.
+ */
+async function setManualMerit(params) {
+    const result = await databaseService_1.databaseService.setMerit({
+        discordUserId: params.discordUserId,
+        username: params.username,
+        newTotal: params.newTotal,
+        reason: config_1.MERIT_REASONS.manual_set,
+        givenBy: params.givenBy,
+    });
+    await (0, meritLogger_1.logManualMerit)(params.client, {
+        discordUserId: params.discordUserId,
+        amount: result.actualAmount,
+        reason: config_1.MERIT_REASONS.manual_set,
         givenBy: params.givenBy,
         previousTotal: result.previousTotal,
         newTotal: result.newTotal,

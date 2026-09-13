@@ -44,6 +44,37 @@ class DatabaseService {
             wasDuplicate: row.was_duplicate,
         };
     }
+    /**
+     * Atomically sets (rather than adds to) a user's total_merits via the
+     * set_merit RPC function. Used by /setmerit. Not idempotent by design —
+     * each invocation is a distinct, intentional admin action — but still
+     * routed through a locked RPC so total_merits is never corrupted by
+     * concurrent writes racing with awardMerit.
+     */
+    async setMerit(params) {
+        const { data, error } = await this.client.rpc("set_merit", {
+            p_discord_user_id: params.discordUserId,
+            p_username: params.username,
+            p_new_total: params.newTotal,
+            p_reason: params.reason,
+            p_given_by: params.givenBy ?? null,
+        });
+        if (error) {
+            logger_1.logger.error("set_merit RPC failed", error, { params: { ...params } });
+            throw new Error(`Database error while setting merit: ${error.message}`);
+        }
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row) {
+            throw new Error("set_merit RPC returned no result");
+        }
+        return {
+            transactionId: row.transaction_id,
+            previousTotal: row.previous_total,
+            newTotal: row.new_total,
+            actualAmount: row.actual_amount,
+            wasDuplicate: row.was_duplicate,
+        };
+    }
     async getUser(discordUserId) {
         const { data, error } = await this.client
             .from("users")

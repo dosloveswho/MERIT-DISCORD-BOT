@@ -57,6 +57,7 @@ exports.MERIT_REASONS = {
     activity_report: "Activity Report",
     manual: "Manual Merit",
     manual_adjustment: "Manual Merit Adjustment",
+    manual_set: "Manual Merit Set",
 };
 exports.VALID_IMAGE_MIME_TYPES = new Set([
     "image/png",

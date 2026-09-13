@@ -6,15 +6,16 @@ const discord_js_1 = require("discord.js");
 const meritService_1 = require("../services/meritService");
 const permissions_1 = require("../utils/permissions");
 const logger_1 = require("../utils/logger");
-const MAX_MANUAL_MERIT_AMOUNT = 1_000_000;
+const MAX_MERIT_TOTAL = 1_000_000;
 exports.data = new discord_js_1.SlashCommandBuilder()
     .setName("setmerit")
-    .setDescription("Manually add or remove merits for a member.")
-    .addUserOption((option) => option.setName("user").setDescription("The member to adjust merits for").setRequired(true))
+    .setDescription("Set a member's merit total to an exact value.")
+    .addUserOption((option) => option.setName("user").setDescription("The member to set merits for").setRequired(true))
     .addIntegerOption((option) => option
-    .setName("amount")
-    .setDescription("Amount of merits to add (positive) or remove (negative)")
-    .setRequired(true));
+    .setName("total")
+    .setDescription("The exact merit total this member should have")
+    .setRequired(true)
+    .setMinValue(0));
 async function execute(interaction) {
     const member = interaction.member;
     if (!(0, permissions_1.hasMeritManagerRole)(member)) {
@@ -25,47 +26,50 @@ async function execute(interaction) {
         return;
     }
     const targetUser = interaction.options.getUser("user", true);
-    const amount = interaction.options.getInteger("amount", true);
-    if (!Number.isInteger(amount)) {
+    const newTotal = interaction.options.getInteger("total", true);
+    if (!Number.isInteger(newTotal)) {
         await interaction.reply({
-            content: "❌ Please provide a whole number amount.",
+            content: "❌ Please provide a whole number total.",
             ephemeral: true,
         });
         return;
     }
-    if (Math.abs(amount) > MAX_MANUAL_MERIT_AMOUNT) {
+    if (newTotal < 0) {
         await interaction.reply({
-            content: `❌ Amount must not exceed ${MAX_MANUAL_MERIT_AMOUNT} in magnitude.`,
+            content: "❌ Merit total cannot be negative.",
+            ephemeral: true,
+        });
+        return;
+    }
+    if (newTotal > MAX_MERIT_TOTAL) {
+        await interaction.reply({
+            content: `❌ Total must not exceed ${MAX_MERIT_TOTAL}.`,
             ephemeral: true,
         });
         return;
     }
     await interaction.deferReply();
     try {
-        const result = await (0, meritService_1.applyManualMerit)({
+        const result = await (0, meritService_1.setManualMerit)({
             client: interaction.client,
             discordUserId: targetUser.id,
             username: targetUser.username,
-            amount,
+            newTotal,
             givenBy: interaction.user.id,
         });
         const embed = new discord_js_1.EmbedBuilder()
-            .setTitle(amount >= 0 ? "🏅 Merit Added" : "🏅 Merit Adjusted")
-            .setColor(amount >= 0 ? 0x2ecc71 : 0xe74c3c)
-            .addFields({ name: "Member", value: `<@${targetUser.id}>`, inline: true }, {
-            name: "Amount",
-            value: `${result.actualAmount >= 0 ? "+" : ""}${result.actualAmount}`,
-            inline: true,
-        }, { name: "New Total", value: String(result.newTotal), inline: true });
-        if (result.actualAmount !== amount) {
+            .setTitle("🏅 Merit Set")
+            .setColor(0x3498db)
+            .addFields({ name: "Member", value: `<@${targetUser.id}>`, inline: true }, { name: "Previous Total", value: String(result.previousTotal), inline: true }, { name: "New Total", value: String(result.newTotal), inline: true });
+        if (result.newTotal !== newTotal) {
             embed.setFooter({
-                text: `Requested ${amount}, but total merits cannot go below 0. Adjusted to ${result.actualAmount}.`,
+                text: `Requested ${newTotal}, but total merits cannot go below 0. Adjusted to ${result.newTotal}.`,
             });
         }
         await interaction.editReply({ embeds: [embed] });
     }
     catch (error) {
-        logger_1.logger.error("/setmerit command failed", error, { targetUserId: targetUser.id, amount });
+        logger_1.logger.error("/setmerit command failed", error, { targetUserId: targetUser.id, newTotal });
         await interaction.editReply({
             content: "❌ Unable to process your merit submission right now.\n\nPlease try again later.",
         });
