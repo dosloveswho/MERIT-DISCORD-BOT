@@ -39,6 +39,7 @@ const logger_1 = require("./utils/logger");
 const ready_1 = require("./events/ready");
 const interactionCreate_1 = require("./events/interactionCreate");
 const messageCreate_1 = require("./events/messageCreate");
+const messageReactionAdd_1 = require("./events/messageReactionAdd");
 const merits = __importStar(require("./commands/merits"));
 const setmerit = __importStar(require("./commands/setmerit"));
 const setupMeritPanel = __importStar(require("./commands/setupMeritPanel"));
@@ -48,8 +49,9 @@ const client = new discord_js_1.Client({
         discord_js_1.GatewayIntentBits.GuildMembers,
         discord_js_1.GatewayIntentBits.GuildMessages,
         discord_js_1.GatewayIntentBits.MessageContent,
+        discord_js_1.GatewayIntentBits.GuildMessageReactions,
     ],
-    partials: [discord_js_1.Partials.Channel, discord_js_1.Partials.Message],
+    partials: [discord_js_1.Partials.Channel, discord_js_1.Partials.Message, discord_js_1.Partials.Reaction],
 });
 const commands = new discord_js_1.Collection();
 commands.set(merits.data.name, merits);
@@ -57,7 +59,13 @@ commands.set(setmerit.data.name, setmerit);
 commands.set(setupMeritPanel.data.name, setupMeritPanel);
 (0, ready_1.registerReadyEvent)(client);
 (0, interactionCreate_1.registerInteractionCreateEvent)(client, commands);
-(0, messageCreate_1.registerMessageCreateEvent)(client);
+(0, messageReactionAdd_1.registerReactionChannels)();
+client.on("messageCreate", (message) => {
+    (0, messageCreate_1.handleMessageCreate)(client, message);
+});
+client.on("messageReactionAdd", (reaction, user) => {
+    (0, messageReactionAdd_1.handleMessageReactionAdd)(client, reaction, user);
+});
 process.on("unhandledRejection", (reason) => {
     logger_1.logger.error("Unhandled promise rejection", reason);
 });
