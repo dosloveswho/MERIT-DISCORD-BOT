@@ -42,7 +42,7 @@ const messageCreate_1 = require("./events/messageCreate");
 const messageReactionAdd_1 = require("./events/messageReactionAdd");
 const merits = __importStar(require("./commands/merits"));
 const setmerit = __importStar(require("./commands/setmerit"));
-const setupMeritPanel = __importStar(require("./commands/setupMeritPanel"));
+const addmerit = __importStar(require("./commands/addmerit"));
 const client = new discord_js_1.Client({
     intents: [
         discord_js_1.GatewayIntentBits.Guilds,
@@ -56,7 +56,7 @@ const client = new discord_js_1.Client({
 const commands = new discord_js_1.Collection();
 commands.set(merits.data.name, merits);
 commands.set(setmerit.data.name, setmerit);
-commands.set(setupMeritPanel.data.name, setupMeritPanel);
+commands.set(addmerit.data.name, addmerit);
 (0, ready_1.registerReadyEvent)(client);
 (0, interactionCreate_1.registerInteractionCreateEvent)(client, commands);
 (0, messageReactionAdd_1.registerReactionChannels)();

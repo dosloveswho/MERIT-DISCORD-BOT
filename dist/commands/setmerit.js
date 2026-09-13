@@ -26,9 +26,9 @@ async function execute(interaction) {
     }
     const targetUser = interaction.options.getUser("user", true);
     const amount = interaction.options.getInteger("amount", true);
-    if (!Number.isInteger(amount) || amount === 0) {
+    if (!Number.isInteger(amount)) {
         await interaction.reply({
-            content: "❌ Please provide a non-zero whole number amount.",
+            content: "❌ Please provide a whole number amount.",
             ephemeral: true,
         });
         return;

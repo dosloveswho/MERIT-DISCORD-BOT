@@ -37,13 +37,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const targetUser = interaction.options.getUser("user", true);
   const amount = interaction.options.getInteger("amount", true);
 
-  if (!Number.isInteger(amount) || amount === 0) {
-    await interaction.reply({
-      content: "❌ Please provide a non-zero whole number amount.",
-      ephemeral: true,
-    });
-    return;
-  }
+if (!Number.isInteger(amount)) {
+  await interaction.reply({
+    content: "❌ Please provide a whole number amount.",
+    ephemeral: true,
+  });
+  return;
+}
 
   if (Math.abs(amount) > MAX_MANUAL_MERIT_AMOUNT) {
     await interaction.reply({
