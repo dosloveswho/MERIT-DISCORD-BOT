@@ -274,6 +274,92 @@ end;
 $$ language plpgsql;
 
 -- =====================================================================
+-- ABSOLUTE MERIT SET FUNCTION
+--
+-- Used by /setmerit, which sets a user's total_merits to an exact
+-- value rather than adding/subtracting a delta (that add/subtract
+-- behavior is still available via /addmerit -> award_merit).
+--
+-- Safety properties mirror award_merit:
+--   1. Same per-user advisory lock, so a /setmerit call can never race
+--      with a concurrent award_merit call and clobber its result.
+--   2. The user row is locked with SELECT ... FOR UPDATE before the
+--      new total is written.
+--   3. The resulting total is clamped with GREATEST(0, ...) so the
+--      total_merits >= 0 check constraint is never violated.
+--   4. A merit_transactions row is still written (amount = the delta
+--      actually applied) so the ledger/audit trail stays accurate even
+--      though this is a "set" rather than an "adjust" operation. This
+--      is intentionally NOT idempotent — every call is a distinct,
+--      deliberate admin action (same as manual award_merit calls).
+-- =====================================================================
+create or replace function set_merit(
+  p_discord_user_id text,
+  p_username text,
+  p_new_total integer,
+  p_reason text,
+  p_given_by text
+)
+returns table (
+  transaction_id uuid,
+  previous_total integer,
+  new_total integer,
+  actual_amount integer,
+  was_duplicate boolean
+) as $$
+declare
+  v_user_id uuid;
+  v_previous_total integer;
+  v_actual_total integer;
+  v_delta integer;
+  v_tx_id uuid;
+begin
+  -- Serialize against both concurrent set_merit and award_merit calls
+  -- for the same user (same lock key as award_merit).
+  perform pg_advisory_xact_lock(hashtext('merit_user:' || p_discord_user_id));
+
+  -- 1. Ensure user exists (create if needed), lock their row.
+  insert into users (discord_user_id, username)
+  values (p_discord_user_id, coalesce(p_username, 'unknown'))
+  on conflict (discord_user_id) do nothing;
+
+  update users
+  set username = coalesce(p_username, username)
+  where discord_user_id = p_discord_user_id;
+
+  select id, total_merits into v_user_id, v_previous_total
+  from users
+  where discord_user_id = p_discord_user_id
+  for update;
+
+  -- 2. Clamp the requested total so total_merits >= 0 is never violated.
+  v_actual_total := greatest(0, p_new_total);
+  v_delta := v_actual_total - v_previous_total;
+
+  -- 3. Record the resulting change in the audit-trail ledger.
+  insert into merit_transactions (
+    discord_user_id, amount, reason, source, given_by
+  )
+  values (
+    p_discord_user_id, v_delta, p_reason, 'manual', p_given_by
+  )
+  returning id into v_tx_id;
+
+  -- 4. Write the new total directly (row already locked above).
+  update users
+  set total_merits = v_actual_total
+  where discord_user_id = p_discord_user_id;
+
+  return query select
+    v_tx_id,
+    v_previous_total,
+    v_actual_total,
+    v_delta,
+    false;
+end;
+$$ language plpgsql;
+
+-- =====================================================================
 -- Row Level Security
 -- The bot uses the service role key exclusively (server-side only),
 -- which bypasses RLS. RLS is enabled here as defense-in-depth in case

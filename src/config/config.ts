@@ -62,6 +62,7 @@ export const MERIT_REASONS = {
   activity_report: "Activity Report",
   manual: "Manual Merit",
   manual_adjustment: "Manual Merit Adjustment",
+  manual_set: "Manual Merit Set",
 } as const;
 
 export type ReportType = keyof typeof MERIT_VALUES;

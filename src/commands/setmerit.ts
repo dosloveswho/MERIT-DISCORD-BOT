@@ -4,23 +4,24 @@ import {
   GuildMember,
   SlashCommandBuilder,
 } from "discord.js";
-import { applyManualMerit } from "../services/meritService";
+import { setManualMerit } from "../services/meritService";
 import { hasMeritManagerRole } from "../utils/permissions";
 import { logger } from "../utils/logger";
 
-const MAX_MANUAL_MERIT_AMOUNT = 1_000_000;
+const MAX_MERIT_TOTAL = 1_000_000;
 
 export const data = new SlashCommandBuilder()
   .setName("setmerit")
-  .setDescription("Manually add or remove merits for a member.")
+  .setDescription("Set a member's merit total to an exact value.")
   .addUserOption((option) =>
-    option.setName("user").setDescription("The member to adjust merits for").setRequired(true)
+    option.setName("user").setDescription("The member to set merits for").setRequired(true)
   )
   .addIntegerOption((option) =>
     option
-      .setName("amount")
-      .setDescription("Amount of merits to add (positive) or remove (negative)")
+      .setName("total")
+      .setDescription("The exact merit total this member should have")
       .setRequired(true)
+      .setMinValue(0)
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -35,19 +36,27 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   const targetUser = interaction.options.getUser("user", true);
-  const amount = interaction.options.getInteger("amount", true);
+  const newTotal = interaction.options.getInteger("total", true);
 
-if (!Number.isInteger(amount)) {
-  await interaction.reply({
-    content: "❌ Please provide a whole number amount.",
-    ephemeral: true,
-  });
-  return;
-}
-
-  if (Math.abs(amount) > MAX_MANUAL_MERIT_AMOUNT) {
+  if (!Number.isInteger(newTotal)) {
     await interaction.reply({
-      content: `❌ Amount must not exceed ${MAX_MANUAL_MERIT_AMOUNT} in magnitude.`,
+      content: "❌ Please provide a whole number total.",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  if (newTotal < 0) {
+    await interaction.reply({
+      content: "❌ Merit total cannot be negative.",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  if (newTotal > MAX_MERIT_TOTAL) {
+    await interaction.reply({
+      content: `❌ Total must not exceed ${MAX_MERIT_TOTAL}.`,
       ephemeral: true,
     });
     return;
@@ -56,36 +65,32 @@ if (!Number.isInteger(amount)) {
   await interaction.deferReply();
 
   try {
-    const result = await applyManualMerit({
+    const result = await setManualMerit({
       client: interaction.client,
       discordUserId: targetUser.id,
       username: targetUser.username,
-      amount,
+      newTotal,
       givenBy: interaction.user.id,
     });
 
     const embed = new EmbedBuilder()
-      .setTitle(amount >= 0 ? "🏅 Merit Added" : "🏅 Merit Adjusted")
-      .setColor(amount >= 0 ? 0x2ecc71 : 0xe74c3c)
+      .setTitle("🏅 Merit Set")
+      .setColor(0x3498db)
       .addFields(
         { name: "Member", value: `<@${targetUser.id}>`, inline: true },
-        {
-          name: "Amount",
-          value: `${result.actualAmount >= 0 ? "+" : ""}${result.actualAmount}`,
-          inline: true,
-        },
+        { name: "Previous Total", value: String(result.previousTotal), inline: true },
         { name: "New Total", value: String(result.newTotal), inline: true }
       );
 
-    if (result.actualAmount !== amount) {
+    if (result.newTotal !== newTotal) {
       embed.setFooter({
-        text: `Requested ${amount}, but total merits cannot go below 0. Adjusted to ${result.actualAmount}.`,
+        text: `Requested ${newTotal}, but total merits cannot go below 0. Adjusted to ${result.newTotal}.`,
       });
     }
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    logger.error("/setmerit command failed", error, { targetUserId: targetUser.id, amount });
+    logger.error("/setmerit command failed", error, { targetUserId: targetUser.id, newTotal });
     await interaction.editReply({
       content: "❌ Unable to process your merit submission right now.\n\nPlease try again later.",
     });

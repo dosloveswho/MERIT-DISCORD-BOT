@@ -140,3 +140,39 @@ export async function applyManualMerit(params: ManualMeritParams) {
 
   return result;
 }
+
+export interface SetManualMeritParams {
+  client: Client;
+  discordUserId: string;
+  username: string;
+  newTotal: number;
+  givenBy: string;
+}
+
+/**
+ * Sets a user's merit total to an exact value via /setmerit, rather than
+ * adding/subtracting a delta. Not idempotent by design (each invocation
+ * is a distinct, intentional admin action), but still routed through the
+ * same locked RPC pattern as awardMerit so total_merits is never
+ * corrupted by concurrent writes.
+ */
+export async function setManualMerit(params: SetManualMeritParams) {
+  const result = await databaseService.setMerit({
+    discordUserId: params.discordUserId,
+    username: params.username,
+    newTotal: params.newTotal,
+    reason: MERIT_REASONS.manual_set,
+    givenBy: params.givenBy,
+  });
+
+  await logManualMerit(params.client, {
+    discordUserId: params.discordUserId,
+    amount: result.actualAmount,
+    reason: MERIT_REASONS.manual_set,
+    givenBy: params.givenBy,
+    previousTotal: result.previousTotal,
+    newTotal: result.newTotal,
+  });
+
+  return result;
+}
