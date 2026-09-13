@@ -2,10 +2,10 @@ import { REST, Routes } from "discord.js";
 import { config } from "./config/config";
 import * as merits from "./commands/merits";
 import * as setmerit from "./commands/setmerit";
-import * as setupMeritPanel from "./commands/setupMeritPanel";
+import * as addmerit from "./commands/addmerit";
 import { logger } from "./utils/logger";
 
-const commands = [merits.data.toJSON(), setmerit.data.toJSON(), setupMeritPanel.data.toJSON()];
+const commands = [merits.data.toJSON(), setmerit.data.toJSON(), addmerit.data.toJSON()];
 
 const rest = new REST({ version: "10" }).setToken(config.discordToken);
 

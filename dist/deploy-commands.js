@@ -37,9 +37,9 @@ const discord_js_1 = require("discord.js");
 const config_1 = require("./config/config");
 const merits = __importStar(require("./commands/merits"));
 const setmerit = __importStar(require("./commands/setmerit"));
-const setupMeritPanel = __importStar(require("./commands/setupMeritPanel"));
+const addmerit = __importStar(require("./commands/addmerit"));
 const logger_1 = require("./utils/logger");
-const commands = [merits.data.toJSON(), setmerit.data.toJSON(), setupMeritPanel.data.toJSON()];
+const commands = [merits.data.toJSON(), setmerit.data.toJSON(), addmerit.data.toJSON()];
 const rest = new discord_js_1.REST({ version: "10" }).setToken(config_1.config.discordToken);
 async function main() {
     try {
