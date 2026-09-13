@@ -108,6 +108,15 @@ async function createSubmissionThread(client, discordUserId, username, submissio
             reason: `Merit submission proof collection for ${username}`,
         });
         await thread.members.add(discordUserId);
+        // Add Merit Manager role members so they can see the thread
+        const guild = parentChannel.guild;
+        const meritManagerRole = await guild.roles.fetch(config_1.config.meritManagerRoleId);
+        if (meritManagerRole) {
+            const members = meritManagerRole.members;
+            for (const [, member] of members) {
+                await thread.members.add(member.id).catch(() => null);
+            }
+        }
         const label = REPORT_TYPE_LABELS[submission.report_type];
         const amount = MERIT_AMOUNTS[submission.report_type];
         await thread.send({

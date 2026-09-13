@@ -44,15 +44,20 @@ exports.APPROVE_BUTTON_PREFIX = "merit_approve_";
 exports.REJECT_BUTTON_PREFIX = "merit_reject_";
 async function postApprovalRequest(client, submission, proofStoragePath) {
     try {
-        const channel = await client.channels.fetch(config_1.config.meritLogChannelId);
-        if (!channel || !(channel instanceof discord_js_1.TextChannel)) {
-            logger_1.logger.warn("Cannot post approval request: merit log channel invalid");
+        const threadId = submission.submission_thread_id;
+        if (!threadId) {
+            logger_1.logger.warn("Cannot post approval request: no thread ID on submission");
+            return;
+        }
+        const channel = await client.channels.fetch(threadId);
+        if (!channel || !channel.isThread()) {
+            logger_1.logger.warn("Cannot post approval request: submission thread invalid");
             return;
         }
         const proofUrl = await databaseService_1.databaseService.getProofPublicUrl(proofStoragePath);
         const details = detailsForSubmission(submission);
         const embed = new discord_js_1.EmbedBuilder()
-            .setTitle("📋 NEW MERIT SUBMISSION")
+            .setTitle("📋 NEW MERIT SUBMISSION — PENDING APPROVAL")
             .setColor(0xf39c12)
             .addFields({ name: "Member", value: `<@${submission.discord_user_id}>`, inline: true }, { name: "Report", value: REPORT_TYPE_LABELS[submission.report_type], inline: true }, { name: "Merit", value: `+${MERIT_AMOUNTS[submission.report_type]}`, inline: true }, ...Object.entries(details).map(([name, value]) => ({ name, value: value || "N/A", inline: true })), { name: "Proof", value: proofUrl ? `[View Proof](${proofUrl})` : "N/A" });
         const approveButton = new discord_js_1.ButtonBuilder()
@@ -64,7 +69,11 @@ async function postApprovalRequest(client, submission, proofStoragePath) {
             .setLabel("❌ Reject")
             .setStyle(discord_js_1.ButtonStyle.Danger);
         const row = new discord_js_1.ActionRowBuilder().addComponents(approveButton, rejectButton);
-        await channel.send({ embeds: [embed], components: [row] });
+        await channel.send({
+            content: `<@&${config_1.config.meritManagerRoleId}> New submission pending your review.`,
+            embeds: [embed],
+            components: [row],
+        });
     }
     catch (error) {
         logger_1.logger.error("postApprovalRequest failed", error, { submissionId: submission.id });
@@ -94,7 +103,7 @@ async function handleSubmissionButton(interaction) {
             await (0, submissionService_1.rejectSubmission)(interaction.client, submissionId, interaction.user.id);
             await interaction.editReply({ content: "❌ Submission rejected. No merits were awarded." });
         }
-        // Disable the buttons on the original admin message.
+        // Disable the buttons after action.
         if (interaction.message.editable) {
             const disabledApprove = new discord_js_1.ButtonBuilder()
                 .setCustomId(`${exports.APPROVE_BUTTON_PREFIX}${submissionId}`)
