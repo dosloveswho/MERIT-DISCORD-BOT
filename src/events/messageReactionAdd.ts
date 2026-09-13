@@ -44,6 +44,7 @@ export async function handleMessageReactionAdd(
   const emoji = reaction.emoji.name;
   if (emoji !== "✅" && emoji !== "❌") return;
 
+  // Validate Merit Manager role — remove reaction if not authorized
   const member = await message.guild.members.fetch(user.id).catch(() => null) as GuildMember | null;
   if (!hasMeritManagerRole(member)) {
     await reaction.users.remove(user.id).catch(() => null);
@@ -53,18 +54,31 @@ export async function handleMessageReactionAdd(
   const hasImage = message.attachments.some(a => a.contentType?.startsWith("image/"));
   if (!hasImage) return;
 
-  const botReactions = message.reactions.cache.filter(r =>
-    (r.emoji.name === "✅" || r.emoji.name === "❌") &&
-    r.users.cache.has(client.user!.id)
-  );
-  if (botReactions.size > 0) {
-    await reaction.users.remove(user.id).catch(() => null);
-    return;
+  // Already processed — if the opposite bot reaction count > 1 (bot + someone),
+  // or this emoji already has more than 1 user (bot + manager who already acted)
+  // the simplest check: look for a non-bot user on the OTHER emoji
+  const otherEmoji = emoji === "✅" ? "❌" : "✅";
+  const otherReaction = message.reactions.cache.get(otherEmoji);
+  if (otherReaction) {
+    await otherReaction.fetch().catch(() => null);
+    const nonBotUsers = otherReaction.users.cache.filter(u => !u.bot);
+    if (nonBotUsers.size > 0) {
+      // Already acted on by another manager via the other emoji
+      await reaction.users.remove(user.id).catch(() => null);
+      return;
+    }
   }
 
-  const pendingReaction = message.reactions.cache.get("⏳");
-  if (pendingReaction) {
-    await pendingReaction.users.remove(client.user!.id).catch(() => null);
+  // Check if this same emoji was already acted on (another manager already clicked this)
+  const thisReaction = message.reactions.cache.get(emoji);
+  if (thisReaction) {
+    await thisReaction.fetch().catch(() => null);
+    const nonBotUsers = thisReaction.users.cache.filter(u => !u.bot);
+    if (nonBotUsers.size > 1) {
+      // More than one non-bot user reacted — already processed
+      await reaction.users.remove(user.id).catch(() => null);
+      return;
+    }
   }
 
   const messageAuthor = message.author;
@@ -88,16 +102,19 @@ export async function handleMessageReactionAdd(
 
       if (result.wasDuplicate) {
         logger.warn("Duplicate reaction merit prevented", { messageId: message.id });
-        await message.react("✅");
         return;
       }
 
-      await message.react("✅");
+      // Remove the ❌ bot reaction since approved
+      const rejectReaction = message.reactions.cache.get("❌");
+      if (rejectReaction) {
+        await rejectReaction.users.remove(client.user!.id).catch(() => null);
+      }
 
       const logChannel = await client.channels.fetch(config.meritLogChannelId).catch(() => null);
       if (logChannel && logChannel instanceof TextChannel) {
         const embed = new EmbedBuilder()
-          .setTitle("🏅 MERIT LOG")
+          .setTitle("🏅 MERIT APPROVED")
           .setColor(0x2ecc71)
           .addFields(
             { name: "Member", value: `<@${messageAuthor.id}>`, inline: true },
@@ -114,10 +131,13 @@ export async function handleMessageReactionAdd(
       }
     } catch (error) {
       logger.error("Failed to award reaction merit", error, { messageId: message.id });
-      await message.react("⏳");
     }
   } else if (emoji === "❌") {
-    await message.react("❌");
+    // Remove the ✅ bot reaction since rejected
+    const approveReaction = message.reactions.cache.get("✅");
+    if (approveReaction) {
+      await approveReaction.users.remove(client.user!.id).catch(() => null);
+    }
 
     const logChannel = await client.channels.fetch(config.meritLogChannelId).catch(() => null);
     if (logChannel && logChannel instanceof TextChannel) {

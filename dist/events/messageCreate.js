@@ -22,7 +22,8 @@ async function handleMessageCreate(client, message) {
     if (!hasImage)
         return;
     try {
-        await message.react("⏳");
+        await message.react("✅");
+        await message.react("❌");
     }
     catch (error) {
         logger_1.logger.error("Failed to react to proof message", error, { messageId: message.id });

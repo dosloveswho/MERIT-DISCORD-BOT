@@ -23,7 +23,8 @@ export async function handleMessageCreate(client: Client, message: Message): Pro
   if (!hasImage) return;
 
   try {
-    await message.react("⏳");
+    await message.react("✅");
+    await message.react("❌");
   } catch (error) {
     logger.error("Failed to react to proof message", error, { messageId: message.id });
   }
