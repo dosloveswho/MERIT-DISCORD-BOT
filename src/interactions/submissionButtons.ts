@@ -6,7 +6,6 @@ import {
   Client,
   EmbedBuilder,
   GuildMember,
-  TextChannel,
 } from "discord.js";
 import { config } from "../config/config";
 import { databaseService, MeritSubmissionRecord, ReportType } from "../services/databaseService";
@@ -57,9 +56,15 @@ export async function postApprovalRequest(
   proofStoragePath: string
 ): Promise<void> {
   try {
-    const channel = await client.channels.fetch(config.meritLogChannelId);
-    if (!channel || !(channel instanceof TextChannel)) {
-      logger.warn("Cannot post approval request: merit log channel invalid");
+    const threadId = submission.submission_thread_id;
+    if (!threadId) {
+      logger.warn("Cannot post approval request: no thread ID on submission");
+      return;
+    }
+
+    const channel = await client.channels.fetch(threadId);
+    if (!channel || !channel.isThread()) {
+      logger.warn("Cannot post approval request: submission thread invalid");
       return;
     }
 
@@ -67,7 +72,7 @@ export async function postApprovalRequest(
     const details = detailsForSubmission(submission);
 
     const embed = new EmbedBuilder()
-      .setTitle("📋 NEW MERIT SUBMISSION")
+      .setTitle("📋 NEW MERIT SUBMISSION — PENDING APPROVAL")
       .setColor(0xf39c12)
       .addFields(
         { name: "Member", value: `<@${submission.discord_user_id}>`, inline: true },
@@ -89,7 +94,11 @@ export async function postApprovalRequest(
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(approveButton, rejectButton);
 
-    await channel.send({ embeds: [embed], components: [row] });
+    await channel.send({
+      content: `<@&${config.meritManagerRoleId}> New submission pending your review.`,
+      embeds: [embed],
+      components: [row],
+    });
   } catch (error) {
     logger.error("postApprovalRequest failed", error, { submissionId: submission.id });
   }
@@ -124,7 +133,7 @@ export async function handleSubmissionButton(interaction: ButtonInteraction): Pr
       await interaction.editReply({ content: "❌ Submission rejected. No merits were awarded." });
     }
 
-    // Disable the buttons on the original admin message.
+    // Disable the buttons after action.
     if (interaction.message.editable) {
       const disabledApprove = new ButtonBuilder()
         .setCustomId(`${APPROVE_BUTTON_PREFIX}${submissionId}`)
