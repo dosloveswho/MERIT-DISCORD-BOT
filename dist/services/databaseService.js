@@ -87,6 +87,19 @@ class DatabaseService {
         }
         return data;
     }
+    async getLeaderboard(limit = 10) {
+        const { data, error } = await this.client
+            .from("users")
+            .select("*")
+            .order("total_merits", { ascending: false })
+            .order("created_at", { ascending: true })
+            .limit(limit);
+        if (error) {
+            logger_1.logger.error("getLeaderboard failed", error, { limit });
+            throw new Error(`Database error while fetching leaderboard: ${error.message}`);
+        }
+        return data ?? [];
+    }
     async getRecentTransactions(discordUserId, limit = 10) {
         const { data, error } = await this.client
             .from("merit_transactions")

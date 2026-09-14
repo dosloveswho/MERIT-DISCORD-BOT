@@ -9,6 +9,7 @@ import { handleMessageReactionAdd, registerReactionChannels } from "./events/mes
 import * as merits from "./commands/merits";
 import * as setmerit from "./commands/setmerit";
 import * as addmerit from "./commands/addmerit";
+import * as leaderboards from "./commands/leaderboards";
 
 
 const client = new Client({
@@ -26,6 +27,7 @@ const commands = new Collection<string, SlashCommand>();
 commands.set(merits.data.name, merits);
 commands.set(setmerit.data.name, setmerit);
 commands.set(addmerit.data.name, addmerit);
+commands.set(leaderboards.data.name, leaderboards);
 
 registerReadyEvent(client);
 registerInteractionCreateEvent(client, commands);
