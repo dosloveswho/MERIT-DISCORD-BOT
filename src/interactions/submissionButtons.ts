@@ -59,11 +59,11 @@ export const REJECT_REASON_SELECT_PREFIX = "merit_reject_reason_";
 export const REJECT_CUSTOM_MODAL_PREFIX = "merit_reject_custom_";
 
 const REJECT_CUSTOM_REASON_INPUT_ID = "reject_custom_reason";
-const OTHER_REASON_VALUE = "other";
+export const OTHER_REASON_VALUE = "other";
 
 // Predefined rejection reasons shown in the dropdown. "Other" opens a
 // modal so a manager can type a free-text reason instead.
-const REJECT_REASONS: { value: string; label: string }[] = [
+export const REJECT_REASONS: { value: string; label: string }[] = [
   { value: "insufficient_proof", label: "Insufficient or unclear proof" },
   { value: "mismatched_details", label: "Proof does not match report details" },
   { value: "duplicate", label: "Duplicate submission" },
@@ -72,7 +72,7 @@ const REJECT_REASONS: { value: string; label: string }[] = [
   { value: OTHER_REASON_VALUE, label: "Other (type a custom reason)" },
 ];
 
-const REJECT_REASON_LABELS: Record<string, string> = Object.fromEntries(
+export const REJECT_REASON_LABELS: Record<string, string> = Object.fromEntries(
   REJECT_REASONS.filter((r) => r.value !== OTHER_REASON_VALUE).map((r) => [r.value, r.label])
 );
 

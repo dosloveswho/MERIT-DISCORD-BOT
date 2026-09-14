@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.REJECT_CUSTOM_MODAL_PREFIX = exports.REJECT_REASON_SELECT_PREFIX = exports.REJECT_BUTTON_PREFIX = exports.APPROVE_BUTTON_PREFIX = void 0;
+exports.REJECT_REASON_LABELS = exports.REJECT_REASONS = exports.OTHER_REASON_VALUE = exports.REJECT_CUSTOM_MODAL_PREFIX = exports.REJECT_REASON_SELECT_PREFIX = exports.REJECT_BUTTON_PREFIX = exports.APPROVE_BUTTON_PREFIX = void 0;
 exports.postApprovalRequest = postApprovalRequest;
 exports.handleSubmissionButton = handleSubmissionButton;
 exports.handleRejectReasonSelect = handleRejectReasonSelect;
@@ -47,18 +47,18 @@ exports.REJECT_BUTTON_PREFIX = "merit_reject_";
 exports.REJECT_REASON_SELECT_PREFIX = "merit_reject_reason_";
 exports.REJECT_CUSTOM_MODAL_PREFIX = "merit_reject_custom_";
 const REJECT_CUSTOM_REASON_INPUT_ID = "reject_custom_reason";
-const OTHER_REASON_VALUE = "other";
+exports.OTHER_REASON_VALUE = "other";
 // Predefined rejection reasons shown in the dropdown. "Other" opens a
 // modal so a manager can type a free-text reason instead.
-const REJECT_REASONS = [
+exports.REJECT_REASONS = [
     { value: "insufficient_proof", label: "Insufficient or unclear proof" },
     { value: "mismatched_details", label: "Proof does not match report details" },
     { value: "duplicate", label: "Duplicate submission" },
     { value: "incomplete", label: "Missing required information" },
     { value: "does_not_meet_requirements", label: "Does not meet report requirements" },
-    { value: OTHER_REASON_VALUE, label: "Other (type a custom reason)" },
+    { value: exports.OTHER_REASON_VALUE, label: "Other (type a custom reason)" },
 ];
-const REJECT_REASON_LABELS = Object.fromEntries(REJECT_REASONS.filter((r) => r.value !== OTHER_REASON_VALUE).map((r) => [r.value, r.label]));
+exports.REJECT_REASON_LABELS = Object.fromEntries(exports.REJECT_REASONS.filter((r) => r.value !== exports.OTHER_REASON_VALUE).map((r) => [r.value, r.label]));
 async function postApprovalRequest(client, submission, proofStoragePath) {
     try {
         const threadId = submission.submission_thread_id;
@@ -158,7 +158,7 @@ async function promptRejectReason(interaction, submissionId) {
         const selectMenu = new discord_js_1.StringSelectMenuBuilder()
             .setCustomId(`${exports.REJECT_REASON_SELECT_PREFIX}${submissionId}|${interaction.channelId}|${interaction.message.id}`)
             .setPlaceholder("Select a reason for rejection")
-            .addOptions(REJECT_REASONS.map((r) => ({ label: r.label, value: r.value })));
+            .addOptions(exports.REJECT_REASONS.map((r) => ({ label: r.label, value: r.value })));
         const row = new discord_js_1.ActionRowBuilder().addComponents(selectMenu);
         await interaction.reply({
             content: "Please select a reason for rejecting this submission:",
@@ -181,7 +181,7 @@ async function handleRejectReasonSelect(interaction) {
         .slice(exports.REJECT_REASON_SELECT_PREFIX.length)
         .split("|");
     const value = interaction.values[0];
-    if (value === OTHER_REASON_VALUE) {
+    if (value === exports.OTHER_REASON_VALUE) {
         const modal = new discord_js_1.ModalBuilder()
             .setCustomId(`${exports.REJECT_CUSTOM_MODAL_PREFIX}${submissionId}|${channelId}|${messageId}`)
             .setTitle("Rejection Reason");
@@ -195,7 +195,7 @@ async function handleRejectReasonSelect(interaction) {
         await interaction.showModal(modal);
         return;
     }
-    const reason = REJECT_REASON_LABELS[value] ?? value;
+    const reason = exports.REJECT_REASON_LABELS[value] ?? value;
     await interaction.update({
         content: `⏳ Rejecting submission with reason: **${reason}**...`,
         components: [],

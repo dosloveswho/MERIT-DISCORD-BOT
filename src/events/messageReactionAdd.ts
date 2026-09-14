@@ -12,6 +12,7 @@ import { config, MERIT_VALUES, MERIT_REASONS } from "../config/config";
 import { databaseService } from "../services/databaseService";
 import { hasMeritManagerRole } from "../utils/permissions";
 import { logger } from "../utils/logger";
+import { promptReactionRejectReason } from "../interactions/reactionRejectReason";
 
 const REPORT_CHANNELS: Record<string, keyof typeof MERIT_VALUES> = {};
 
@@ -139,19 +140,16 @@ export async function handleMessageReactionAdd(
       await approveReaction.users.remove(client.user!.id).catch(() => null);
     }
 
-    const logChannel = await client.channels.fetch(config.meritLogChannelId).catch(() => null);
-    if (logChannel && logChannel instanceof TextChannel) {
-      const embed = new EmbedBuilder()
-        .setTitle("🚫 MERIT REJECTED")
-        .setColor(0xe74c3c)
-        .addFields(
-          { name: "Member", value: `<@${messageAuthor.id}>`, inline: true },
-          { name: "Report Type", value: MERIT_REASONS[reportType], inline: true },
-          { name: "Rejected By", value: `<@${user.id}>`, inline: true }
-        )
-        .setTimestamp(new Date());
-
-      await logChannel.send({ embeds: [embed] });
-    }
+    // Ask the reviewing manager to pick a reason instead of logging the
+    // rejection immediately. There's no Discord "interaction" behind a
+    // reaction, so the dropdown is posted as a regular message in the
+    // channel, addressed to them, and deleted once a reason is chosen.
+    await promptReactionRejectReason(client, {
+      reportMessageId: message.id,
+      reportChannelId: message.channelId,
+      reportType,
+      authorId: messageAuthor.id,
+      reviewerId: user.id,
+    });
   }
 }

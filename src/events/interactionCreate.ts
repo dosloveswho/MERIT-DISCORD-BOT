@@ -20,6 +20,12 @@ import {
   handleRejectReasonSelect,
   handleRejectCustomReasonModal,
 } from "../interactions/submissionButtons";
+import {
+  REACTION_REJECT_REASON_SELECT_PREFIX,
+  REACTION_REJECT_CUSTOM_MODAL_PREFIX,
+  handleReactionRejectReasonSelect,
+  handleReactionRejectCustomReasonModal,
+} from "../interactions/reactionRejectReason";
 import { logger } from "../utils/logger";
 
 export interface SlashCommand {
@@ -49,6 +55,11 @@ export function registerInteractionCreateEvent(
           return;
         }
 
+        if (interaction.customId.startsWith(REACTION_REJECT_CUSTOM_MODAL_PREFIX)) {
+          await handleReactionRejectCustomReasonModal(interaction);
+          return;
+        }
+
         switch (interaction.customId) {
           case TIME_IN_OUT_MODAL_ID:
             await handleTimeInOutModal(interaction);
@@ -68,6 +79,10 @@ export function registerInteractionCreateEvent(
       if (interaction.isStringSelectMenu()) {
         if (interaction.customId.startsWith(REJECT_REASON_SELECT_PREFIX)) {
           await handleRejectReasonSelect(interaction);
+          return;
+        }
+        if (interaction.customId.startsWith(REACTION_REJECT_REASON_SELECT_PREFIX)) {
+          await handleReactionRejectReasonSelect(interaction);
         }
         return;
       }

@@ -6,6 +6,7 @@ const timeInOutModal_1 = require("../interactions/timeInOutModal");
 const arrestReportModal_1 = require("../interactions/arrestReportModal");
 const activityReportModal_1 = require("../interactions/activityReportModal");
 const submissionButtons_1 = require("../interactions/submissionButtons");
+const reactionRejectReason_1 = require("../interactions/reactionRejectReason");
 const logger_1 = require("../utils/logger");
 function registerInteractionCreateEvent(client, commands) {
     client.on("interactionCreate", async (interaction) => {
@@ -22,6 +23,10 @@ function registerInteractionCreateEvent(client, commands) {
             if (interaction.isModalSubmit()) {
                 if (interaction.customId.startsWith(submissionButtons_1.REJECT_CUSTOM_MODAL_PREFIX)) {
                     await (0, submissionButtons_1.handleRejectCustomReasonModal)(interaction);
+                    return;
+                }
+                if (interaction.customId.startsWith(reactionRejectReason_1.REACTION_REJECT_CUSTOM_MODAL_PREFIX)) {
+                    await (0, reactionRejectReason_1.handleReactionRejectCustomReasonModal)(interaction);
                     return;
                 }
                 switch (interaction.customId) {
@@ -42,6 +47,10 @@ function registerInteractionCreateEvent(client, commands) {
             if (interaction.isStringSelectMenu()) {
                 if (interaction.customId.startsWith(submissionButtons_1.REJECT_REASON_SELECT_PREFIX)) {
                     await (0, submissionButtons_1.handleRejectReasonSelect)(interaction);
+                    return;
+                }
+                if (interaction.customId.startsWith(reactionRejectReason_1.REACTION_REJECT_REASON_SELECT_PREFIX)) {
+                    await (0, reactionRejectReason_1.handleReactionRejectReasonSelect)(interaction);
                 }
                 return;
             }
