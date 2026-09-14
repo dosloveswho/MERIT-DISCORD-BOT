@@ -65,10 +65,8 @@ export async function handleApprovalButton(interaction: ButtonInteraction): Prom
         return;
       }
 
-      // Disable buttons on panel
       await disablePanel(interaction, true);
 
-      // Log to merit-logs
       const logChannel = await interaction.client.channels.fetch(config.meritLogChannelId).catch(() => null);
       if (logChannel && logChannel instanceof TextChannel) {
         const embed = new EmbedBuilder()
@@ -93,9 +91,8 @@ export async function handleApprovalButton(interaction: ButtonInteraction): Prom
       await interaction.editReply({ content: "❌ Failed to award merits. Try again." });
     }
   } else {
-    // Show rejection reason dropdown — ephemeral
     const select = new StringSelectMenuBuilder()
-      .setCustomId(`${PANEL_REJECT_REASON_PREFIX}${payload}`)
+      .setCustomId(`${PANEL_REJECT_REASON_PREFIX}${messageId}_${authorId}_${reportType}`)
       .setPlaceholder("Select a rejection reason")
       .addOptions(
         REJECTION_REASONS.map((r, i) => ({ label: r.slice(0, 100), value: String(i) }))
@@ -113,31 +110,35 @@ export async function handleRejectReasonSelect(interaction: StringSelectMenuInte
   const parts = payload.split("_");
   const reportType = parts[parts.length - 1] as keyof typeof MERIT_VALUES;
   const authorId = parts[parts.length - 2];
+  const messageId = parts.slice(0, parts.length - 2).join("_");
 
   const reasonIndex = parseInt(interaction.values[0]);
   const reason = REJECTION_REASONS[reasonIndex];
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferUpdate();
 
   try {
-    // Disable buttons on the original panel message
-    const originalMessage = interaction.message;
-    if (originalMessage && originalMessage.editable) {
-      const disabledApprove = new ButtonBuilder()
-        .setCustomId("done_approve")
-        .setLabel("✅ Approve")
-        .setStyle(ButtonStyle.Success)
-        .setDisabled(true);
-      const disabledReject = new ButtonBuilder()
-        .setCustomId("done_reject")
-        .setLabel("❌ Rejected")
-        .setStyle(ButtonStyle.Danger)
-        .setDisabled(true);
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(disabledApprove, disabledReject);
-      await originalMessage.edit({ components: [row] }).catch(() => null);
+    await interaction.editReply({ content: "❌ Submission rejected and logged.", components: [] });
+
+    const channel = interaction.channel;
+    if (channel && channel.isTextBased()) {
+      const panelMsg = await channel.messages.fetch(messageId).catch(() => null);
+      if (panelMsg && panelMsg.editable) {
+        const disabledApprove = new ButtonBuilder()
+          .setCustomId("done_approve")
+          .setLabel("✅ Approve")
+          .setStyle(ButtonStyle.Success)
+          .setDisabled(true);
+        const disabledReject = new ButtonBuilder()
+          .setCustomId("done_reject")
+          .setLabel("❌ Rejected")
+          .setStyle(ButtonStyle.Danger)
+          .setDisabled(true);
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(disabledApprove, disabledReject);
+        await panelMsg.edit({ components: [row] }).catch(() => null);
+      }
     }
 
-    // Log to merit-logs
     const logChannel = await interaction.client.channels.fetch(config.meritLogChannelId).catch(() => null);
     if (logChannel && logChannel instanceof TextChannel) {
       const embed = new EmbedBuilder()
@@ -153,11 +154,8 @@ export async function handleRejectReasonSelect(interaction: StringSelectMenuInte
 
       await logChannel.send({ embeds: [embed] });
     }
-
-    await interaction.editReply({ content: "❌ Submission rejected and logged." });
   } catch (error) {
     logger.error("Reject reason select failed", error);
-    await interaction.editReply({ content: "❌ Failed to process rejection." });
   }
 }
 

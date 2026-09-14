@@ -51,9 +51,7 @@ async function handleApprovalButton(interaction) {
                 await interaction.editReply({ content: "⚠️ Already processed." });
                 return;
             }
-            // Disable buttons on panel
             await disablePanel(interaction, true);
-            // Log to merit-logs
             const logChannel = await interaction.client.channels.fetch(config_1.config.meritLogChannelId).catch(() => null);
             if (logChannel && logChannel instanceof discord_js_1.TextChannel) {
                 const embed = new discord_js_1.EmbedBuilder()
@@ -71,9 +69,8 @@ async function handleApprovalButton(interaction) {
         }
     }
     else {
-        // Show rejection reason dropdown — ephemeral
         const select = new discord_js_1.StringSelectMenuBuilder()
-            .setCustomId(`${exports.PANEL_REJECT_REASON_PREFIX}${payload}`)
+            .setCustomId(`${exports.PANEL_REJECT_REASON_PREFIX}${messageId}_${authorId}_${reportType}`)
             .setPlaceholder("Select a rejection reason")
             .addOptions(REJECTION_REASONS.map((r, i) => ({ label: r.slice(0, 100), value: String(i) })));
         const row = new discord_js_1.ActionRowBuilder().addComponents(select);
@@ -87,27 +84,30 @@ async function handleRejectReasonSelect(interaction) {
     const parts = payload.split("_");
     const reportType = parts[parts.length - 1];
     const authorId = parts[parts.length - 2];
+    const messageId = parts.slice(0, parts.length - 2).join("_");
     const reasonIndex = parseInt(interaction.values[0]);
     const reason = REJECTION_REASONS[reasonIndex];
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferUpdate();
     try {
-        // Disable buttons on the original panel message
-        const originalMessage = interaction.message;
-        if (originalMessage && originalMessage.editable) {
-            const disabledApprove = new discord_js_1.ButtonBuilder()
-                .setCustomId("done_approve")
-                .setLabel("✅ Approve")
-                .setStyle(discord_js_1.ButtonStyle.Success)
-                .setDisabled(true);
-            const disabledReject = new discord_js_1.ButtonBuilder()
-                .setCustomId("done_reject")
-                .setLabel("❌ Rejected")
-                .setStyle(discord_js_1.ButtonStyle.Danger)
-                .setDisabled(true);
-            const row = new discord_js_1.ActionRowBuilder().addComponents(disabledApprove, disabledReject);
-            await originalMessage.edit({ components: [row] }).catch(() => null);
+        await interaction.editReply({ content: "❌ Submission rejected and logged.", components: [] });
+        const channel = interaction.channel;
+        if (channel && channel.isTextBased()) {
+            const panelMsg = await channel.messages.fetch(messageId).catch(() => null);
+            if (panelMsg && panelMsg.editable) {
+                const disabledApprove = new discord_js_1.ButtonBuilder()
+                    .setCustomId("done_approve")
+                    .setLabel("✅ Approve")
+                    .setStyle(discord_js_1.ButtonStyle.Success)
+                    .setDisabled(true);
+                const disabledReject = new discord_js_1.ButtonBuilder()
+                    .setCustomId("done_reject")
+                    .setLabel("❌ Rejected")
+                    .setStyle(discord_js_1.ButtonStyle.Danger)
+                    .setDisabled(true);
+                const row = new discord_js_1.ActionRowBuilder().addComponents(disabledApprove, disabledReject);
+                await panelMsg.edit({ components: [row] }).catch(() => null);
+            }
         }
-        // Log to merit-logs
         const logChannel = await interaction.client.channels.fetch(config_1.config.meritLogChannelId).catch(() => null);
         if (logChannel && logChannel instanceof discord_js_1.TextChannel) {
             const embed = new discord_js_1.EmbedBuilder()
@@ -117,11 +117,9 @@ async function handleRejectReasonSelect(interaction) {
                 .setTimestamp(new Date());
             await logChannel.send({ embeds: [embed] });
         }
-        await interaction.editReply({ content: "❌ Submission rejected and logged." });
     }
     catch (error) {
         logger_1.logger.error("Reject reason select failed", error);
-        await interaction.editReply({ content: "❌ Failed to process rejection." });
     }
 }
 async function disablePanel(interaction, approved) {
