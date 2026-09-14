@@ -38,10 +38,10 @@ export async function handleApprovalButton(interaction: ButtonInteraction): Prom
   }
 
   const payload = interaction.customId.slice(isApprove ? PANEL_APPROVE_PREFIX.length : PANEL_REJECT_PREFIX.length);
-  const parts = payload.split("_");
-  const reportType = parts[parts.length - 1] as keyof typeof MERIT_VALUES;
-  const authorId = parts[parts.length - 2];
-  const messageId = parts.slice(0, parts.length - 2).join("_");
+  const parts = payload.split("-");
+  const reportType = parts[2] as keyof typeof MERIT_VALUES;
+  const authorId = parts[1];
+  const messageId = parts[0];
 
   if (isApprove) {
     await interaction.deferReply({ ephemeral: true });
@@ -92,7 +92,7 @@ export async function handleApprovalButton(interaction: ButtonInteraction): Prom
     }
   } else {
     const select = new StringSelectMenuBuilder()
-      .setCustomId(`${PANEL_REJECT_REASON_PREFIX}${messageId}_${authorId}_${reportType}`)
+      .setCustomId(`${PANEL_REJECT_REASON_PREFIX}${messageId}-${authorId}-${reportType}`)
       .setPlaceholder("Select a rejection reason")
       .addOptions(
         REJECTION_REASONS.map((r, i) => ({ label: r.slice(0, 100), value: String(i) }))
@@ -107,10 +107,10 @@ export async function handleRejectReasonSelect(interaction: StringSelectMenuInte
   if (!interaction.customId.startsWith(PANEL_REJECT_REASON_PREFIX)) return;
 
   const payload = interaction.customId.slice(PANEL_REJECT_REASON_PREFIX.length);
-  const parts = payload.split("_");
-  const reportType = parts[parts.length - 1] as keyof typeof MERIT_VALUES;
-  const authorId = parts[parts.length - 2];
-  const messageId = parts.slice(0, parts.length - 2).join("_");
+  const parts = payload.split("-");
+  const reportType = parts[2] as keyof typeof MERIT_VALUES;
+  const authorId = parts[1];
+  const messageId = parts[0];
 
   const reasonIndex = parseInt(interaction.values[0]);
   const reason = REJECTION_REASONS[reasonIndex];

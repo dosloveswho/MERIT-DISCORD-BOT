@@ -44,7 +44,7 @@ export async function handleMessageCreate(client: Client, message: Message): Pro
       )
       .setTimestamp(new Date());
 
-    const payload = `${message.id}_${message.author.id}_${reportType}`;
+    const payload = `${message.id}-${message.author.id}-${reportType}`;
 
     const approveBtn = new ButtonBuilder()
       .setCustomId(`${PANEL_APPROVE_PREFIX}${payload}`)

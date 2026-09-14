@@ -29,10 +29,10 @@ async function handleApprovalButton(interaction) {
         return;
     }
     const payload = interaction.customId.slice(isApprove ? messageCreate_1.PANEL_APPROVE_PREFIX.length : messageCreate_1.PANEL_REJECT_PREFIX.length);
-    const parts = payload.split("_");
-    const reportType = parts[parts.length - 1];
-    const authorId = parts[parts.length - 2];
-    const messageId = parts.slice(0, parts.length - 2).join("_");
+    const parts = payload.split("-");
+    const reportType = parts[2];
+    const authorId = parts[1];
+    const messageId = parts[0];
     if (isApprove) {
         await interaction.deferReply({ ephemeral: true });
         try {
@@ -70,7 +70,7 @@ async function handleApprovalButton(interaction) {
     }
     else {
         const select = new discord_js_1.StringSelectMenuBuilder()
-            .setCustomId(`${exports.PANEL_REJECT_REASON_PREFIX}${messageId}_${authorId}_${reportType}`)
+            .setCustomId(`${exports.PANEL_REJECT_REASON_PREFIX}${messageId}-${authorId}-${reportType}`)
             .setPlaceholder("Select a rejection reason")
             .addOptions(REJECTION_REASONS.map((r, i) => ({ label: r.slice(0, 100), value: String(i) })));
         const row = new discord_js_1.ActionRowBuilder().addComponents(select);
@@ -81,10 +81,10 @@ async function handleRejectReasonSelect(interaction) {
     if (!interaction.customId.startsWith(exports.PANEL_REJECT_REASON_PREFIX))
         return;
     const payload = interaction.customId.slice(exports.PANEL_REJECT_REASON_PREFIX.length);
-    const parts = payload.split("_");
-    const reportType = parts[parts.length - 1];
-    const authorId = parts[parts.length - 2];
-    const messageId = parts.slice(0, parts.length - 2).join("_");
+    const parts = payload.split("-");
+    const reportType = parts[2];
+    const authorId = parts[1];
+    const messageId = parts[0];
     const reasonIndex = parseInt(interaction.values[0]);
     const reason = REJECTION_REASONS[reasonIndex];
     await interaction.deferUpdate();

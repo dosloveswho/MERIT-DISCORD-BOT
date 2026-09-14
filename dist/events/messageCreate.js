@@ -33,7 +33,7 @@ async function handleMessageCreate(client, message) {
             .setTitle("📋 Merit Submission Pending")
             .addFields({ name: "Member", value: `<@${message.author.id}>`, inline: true }, { name: "Report Type", value: reason, inline: true }, { name: "Merit Value", value: `+${amount}`, inline: true })
             .setTimestamp(new Date());
-        const payload = `${message.id}_${message.author.id}_${reportType}`;
+        const payload = `${message.id}-${message.author.id}-${reportType}`;
         const approveBtn = new discord_js_1.ButtonBuilder()
             .setCustomId(`${exports.PANEL_APPROVE_PREFIX}${payload}`)
             .setLabel("✅ Approve")
