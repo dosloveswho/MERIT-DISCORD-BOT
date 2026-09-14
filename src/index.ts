@@ -4,13 +4,11 @@ import { logger } from "./utils/logger";
 import { registerReadyEvent } from "./events/ready";
 import { registerInteractionCreateEvent, SlashCommand } from "./events/interactionCreate";
 import { handleMessageCreate } from "./events/messageCreate";
-import { handleMessageReactionAdd, registerReactionChannels } from "./events/messageReactionAdd";
 
 import * as merits from "./commands/merits";
 import * as setmerit from "./commands/setmerit";
 import * as addmerit from "./commands/addmerit";
 import * as leaderboards from "./commands/leaderboards";
-
 
 const client = new Client({
   intents: [
@@ -18,9 +16,8 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMessageReactions,
   ],
-  partials: [Partials.Channel, Partials.Message, Partials.Reaction],
+  partials: [Partials.Channel, Partials.Message],
 });
 
 const commands = new Collection<string, SlashCommand>();
@@ -31,14 +28,9 @@ commands.set(leaderboards.data.name, leaderboards);
 
 registerReadyEvent(client);
 registerInteractionCreateEvent(client, commands);
-registerReactionChannels();
 
 client.on("messageCreate", (message) => {
   handleMessageCreate(client, message);
-});
-
-client.on("messageReactionAdd", (reaction, user) => {
-  handleMessageReactionAdd(client, reaction, user);
 });
 
 process.on("unhandledRejection", (reason) => {
