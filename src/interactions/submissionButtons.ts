@@ -6,6 +6,12 @@ import {
   Client,
   EmbedBuilder,
   GuildMember,
+  ModalBuilder,
+  ModalSubmitInteraction,
+  StringSelectMenuBuilder,
+  StringSelectMenuInteraction,
+  TextInputBuilder,
+  TextInputStyle,
 } from "discord.js";
 import { config } from "../config/config";
 import { databaseService, MeritSubmissionRecord, ReportType } from "../services/databaseService";
@@ -49,6 +55,26 @@ function detailsForSubmission(sub: MeritSubmissionRecord): Record<string, string
 
 export const APPROVE_BUTTON_PREFIX = "merit_approve_";
 export const REJECT_BUTTON_PREFIX = "merit_reject_";
+export const REJECT_REASON_SELECT_PREFIX = "merit_reject_reason_";
+export const REJECT_CUSTOM_MODAL_PREFIX = "merit_reject_custom_";
+
+const REJECT_CUSTOM_REASON_INPUT_ID = "reject_custom_reason";
+const OTHER_REASON_VALUE = "other";
+
+// Predefined rejection reasons shown in the dropdown. "Other" opens a
+// modal so a manager can type a free-text reason instead.
+const REJECT_REASONS: { value: string; label: string }[] = [
+  { value: "insufficient_proof", label: "Insufficient or unclear proof" },
+  { value: "mismatched_details", label: "Proof does not match report details" },
+  { value: "duplicate", label: "Duplicate submission" },
+  { value: "incomplete", label: "Missing required information" },
+  { value: "does_not_meet_requirements", label: "Does not meet report requirements" },
+  { value: OTHER_REASON_VALUE, label: "Other (type a custom reason)" },
+];
+
+const REJECT_REASON_LABELS: Record<string, string> = Object.fromEntries(
+  REJECT_REASONS.filter((r) => r.value !== OTHER_REASON_VALUE).map((r) => [r.value, r.label])
+);
 
 export async function postApprovalRequest(
   client: Client,
@@ -104,6 +130,20 @@ export async function postApprovalRequest(
   }
 }
 
+function buildDisabledButtonsRow(submissionId: string, rejectLabel = "❌ Reject") {
+  const disabledApprove = new ButtonBuilder()
+    .setCustomId(`${APPROVE_BUTTON_PREFIX}${submissionId}`)
+    .setLabel("✅ Approve")
+    .setStyle(ButtonStyle.Success)
+    .setDisabled(true);
+  const disabledReject = new ButtonBuilder()
+    .setCustomId(`${REJECT_BUTTON_PREFIX}${submissionId}`)
+    .setLabel(rejectLabel)
+    .setStyle(ButtonStyle.Danger)
+    .setDisabled(true);
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(disabledApprove, disabledReject);
+}
+
 export async function handleSubmissionButton(interaction: ButtonInteraction): Promise<void> {
   const isApprove = interaction.customId.startsWith(APPROVE_BUTTON_PREFIX);
   const isReject = interaction.customId.startsWith(REJECT_BUTTON_PREFIX);
@@ -122,39 +162,159 @@ export async function handleSubmissionButton(interaction: ButtonInteraction): Pr
     isApprove ? APPROVE_BUTTON_PREFIX.length : REJECT_BUTTON_PREFIX.length
   );
 
+  if (isReject) {
+    await promptRejectReason(interaction, submissionId);
+    return;
+  }
+
   await interaction.deferReply({ ephemeral: true });
 
   try {
-    if (isApprove) {
-      await finalizeApprovedSubmission(interaction.client, submissionId);
-      await interaction.editReply({ content: "✅ Submission approved and merits awarded." });
-    } else {
-      await rejectSubmission(interaction.client, submissionId, interaction.user.id);
-      await interaction.editReply({ content: "❌ Submission rejected. No merits were awarded." });
-    }
+    await finalizeApprovedSubmission(interaction.client, submissionId);
+    await interaction.editReply({ content: "✅ Submission approved and merits awarded." });
 
-    // Disable the buttons after action.
     if (interaction.message.editable) {
-      const disabledApprove = new ButtonBuilder()
-        .setCustomId(`${APPROVE_BUTTON_PREFIX}${submissionId}`)
-        .setLabel("✅ Approve")
-        .setStyle(ButtonStyle.Success)
-        .setDisabled(true);
-      const disabledReject = new ButtonBuilder()
-        .setCustomId(`${REJECT_BUTTON_PREFIX}${submissionId}`)
-        .setLabel("❌ Reject")
-        .setStyle(ButtonStyle.Danger)
-        .setDisabled(true);
-      const disabledRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        disabledApprove,
-        disabledReject
-      );
-      await interaction.message.edit({ components: [disabledRow] });
+      await interaction.message.edit({ components: [buildDisabledButtonsRow(submissionId)] });
     }
   } catch (error) {
     logger.error("handleSubmissionButton failed", error, { submissionId });
     await interaction.editReply({
       content: "❌ Unable to process your merit submission right now.\n\nPlease try again later.",
     });
+  }
+}
+
+/**
+ * Shows a reason dropdown instead of rejecting immediately. The
+ * Approve/Reject buttons on the original message are disabled right
+ * away so the submission can't be double-processed while the manager
+ * is picking a reason.
+ */
+async function promptRejectReason(interaction: ButtonInteraction, submissionId: string): Promise<void> {
+  try {
+    if (interaction.message.editable) {
+      await interaction.message.edit({
+        components: [buildDisabledButtonsRow(submissionId, "⏳ Awaiting reason...")],
+      });
+    }
+
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId(
+        `${REJECT_REASON_SELECT_PREFIX}${submissionId}|${interaction.channelId}|${interaction.message.id}`
+      )
+      .setPlaceholder("Select a reason for rejection")
+      .addOptions(REJECT_REASONS.map((r) => ({ label: r.label, value: r.value })));
+
+    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
+    await interaction.reply({
+      content: "Please select a reason for rejecting this submission:",
+      components: [row],
+      ephemeral: true,
+    });
+  } catch (error) {
+    logger.error("promptRejectReason failed", error, { submissionId });
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: "❌ Unable to process your merit submission right now.\n\nPlease try again later.",
+        ephemeral: true,
+      });
+    }
+  }
+}
+
+export async function handleRejectReasonSelect(interaction: StringSelectMenuInteraction): Promise<void> {
+  const [submissionId, channelId, messageId] = interaction.customId
+    .slice(REJECT_REASON_SELECT_PREFIX.length)
+    .split("|");
+  const value = interaction.values[0];
+
+  if (value === OTHER_REASON_VALUE) {
+    const modal = new ModalBuilder()
+      .setCustomId(`${REJECT_CUSTOM_MODAL_PREFIX}${submissionId}|${channelId}|${messageId}`)
+      .setTitle("Rejection Reason");
+
+    const reasonInput = new TextInputBuilder()
+      .setCustomId(REJECT_CUSTOM_REASON_INPUT_ID)
+      .setLabel("Reason for rejection")
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true)
+      .setMaxLength(500);
+
+    modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(reasonInput));
+
+    await interaction.showModal(modal);
+    return;
+  }
+
+  const reason = REJECT_REASON_LABELS[value] ?? value;
+
+  await interaction.update({
+    content: `⏳ Rejecting submission with reason: **${reason}**...`,
+    components: [],
+  });
+
+  try {
+    await rejectSubmission(interaction.client, submissionId, interaction.user.id, reason);
+    await annotateRejectedMessage(interaction.client, channelId, messageId, reason);
+    await interaction.editReply({ content: `❌ Submission rejected.\n\nReason: **${reason}**` });
+  } catch (error) {
+    logger.error("handleRejectReasonSelect failed", error, { submissionId });
+    await interaction.editReply({
+      content: "❌ Unable to process your merit submission right now.\n\nPlease try again later.",
+    });
+  }
+}
+
+export async function handleRejectCustomReasonModal(interaction: ModalSubmitInteraction): Promise<void> {
+  const [submissionId, channelId, messageId] = interaction.customId
+    .slice(REJECT_CUSTOM_MODAL_PREFIX.length)
+    .split("|");
+  const reason = interaction.fields.getTextInputValue(REJECT_CUSTOM_REASON_INPUT_ID).trim();
+
+  await interaction.deferReply({ ephemeral: true });
+
+  try {
+    await rejectSubmission(interaction.client, submissionId, interaction.user.id, reason);
+    await annotateRejectedMessage(interaction.client, channelId, messageId, reason);
+    await interaction.editReply({ content: `❌ Submission rejected.\n\nReason: **${reason}**` });
+  } catch (error) {
+    logger.error("handleRejectCustomReasonModal failed", error, { submissionId });
+    await interaction.editReply({
+      content: "❌ Unable to process your merit submission right now.\n\nPlease try again later.",
+    });
+  }
+}
+
+/**
+ * Adds the chosen rejection reason onto the original approval-request
+ * embed so managers browsing the thread can see why it was rejected
+ * without having to check the ephemeral reply.
+ */
+async function annotateRejectedMessage(
+  client: Client,
+  channelId: string,
+  messageId: string,
+  reason: string
+): Promise<void> {
+  try {
+    const channel = await client.channels.fetch(channelId).catch(() => null);
+    if (!channel || !("messages" in channel)) return;
+
+    const message = await (channel as { messages: { fetch: (id: string) => Promise<any> } }).messages
+      .fetch(messageId)
+      .catch(() => null);
+    if (!message || !message.editable) return;
+
+    const existingEmbed = message.embeds[0];
+    const embed = existingEmbed
+      ? EmbedBuilder.from(existingEmbed)
+      : new EmbedBuilder().setTitle("📋 MERIT SUBMISSION");
+
+    embed.setColor(0xe74c3c).addFields({ name: "Rejection Reason", value: reason });
+
+    await message.edit({ embeds: [embed] });
+  } catch (error) {
+    logger.error("annotateRejectedMessage failed", error, { channelId, messageId });
   }
 }

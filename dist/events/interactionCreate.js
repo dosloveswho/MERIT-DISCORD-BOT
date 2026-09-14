@@ -20,6 +20,10 @@ function registerInteractionCreateEvent(client, commands) {
                 return;
             }
             if (interaction.isModalSubmit()) {
+                if (interaction.customId.startsWith(submissionButtons_1.REJECT_CUSTOM_MODAL_PREFIX)) {
+                    await (0, submissionButtons_1.handleRejectCustomReasonModal)(interaction);
+                    return;
+                }
                 switch (interaction.customId) {
                     case meritReportPanels_1.TIME_IN_OUT_MODAL_ID:
                         await (0, timeInOutModal_1.handleTimeInOutModal)(interaction);
@@ -32,6 +36,12 @@ function registerInteractionCreateEvent(client, commands) {
                         break;
                     default:
                         break;
+                }
+                return;
+            }
+            if (interaction.isStringSelectMenu()) {
+                if (interaction.customId.startsWith(submissionButtons_1.REJECT_REASON_SELECT_PREFIX)) {
+                    await (0, submissionButtons_1.handleRejectReasonSelect)(interaction);
                 }
                 return;
             }

@@ -319,8 +319,9 @@ async function rejectSubmission(client, submissionId, rejectedBy, reason) {
     if (submission.submission_thread_id) {
         const thread = await client.channels.fetch(submission.submission_thread_id).catch(() => null);
         if (thread && thread.isThread()) {
+            const reasonLine = reason ? `\n\nReason: ${reason}` : "";
             await thread.send({
-                content: `❌ Merit submission rejected.\n\nReport:\n${label}\n\nNo merits were awarded.`,
+                content: `❌ Merit submission rejected.\n\nReport:\n${label}${reasonLine}\n\nNo merits were awarded.`,
             });
         }
     }

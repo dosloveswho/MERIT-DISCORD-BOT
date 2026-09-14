@@ -14,7 +14,11 @@ import { handleActivityReportModal } from "../interactions/activityReportModal";
 import {
   APPROVE_BUTTON_PREFIX,
   REJECT_BUTTON_PREFIX,
+  REJECT_REASON_SELECT_PREFIX,
+  REJECT_CUSTOM_MODAL_PREFIX,
   handleSubmissionButton,
+  handleRejectReasonSelect,
+  handleRejectCustomReasonModal,
 } from "../interactions/submissionButtons";
 import { logger } from "../utils/logger";
 
@@ -40,6 +44,11 @@ export function registerInteractionCreateEvent(
       }
 
       if (interaction.isModalSubmit()) {
+        if (interaction.customId.startsWith(REJECT_CUSTOM_MODAL_PREFIX)) {
+          await handleRejectCustomReasonModal(interaction);
+          return;
+        }
+
         switch (interaction.customId) {
           case TIME_IN_OUT_MODAL_ID:
             await handleTimeInOutModal(interaction);
@@ -52,6 +61,13 @@ export function registerInteractionCreateEvent(
             break;
           default:
             break;
+        }
+        return;
+      }
+
+      if (interaction.isStringSelectMenu()) {
+        if (interaction.customId.startsWith(REJECT_REASON_SELECT_PREFIX)) {
+          await handleRejectReasonSelect(interaction);
         }
         return;
       }
