@@ -22,6 +22,9 @@ export const data = new SlashCommandBuilder()
       .setDescription("The exact merit total this member should have")
       .setRequired(true)
       .setMinValue(0)
+  )
+  .addStringOption((option) =>
+    option.setName("reason").setDescription("Reason for setting this total").setRequired(false)
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -37,6 +40,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const targetUser = interaction.options.getUser("user", true);
   const newTotal = interaction.options.getInteger("total", true);
+  const reason = interaction.options.getString("reason");
 
   if (!Number.isInteger(newTotal)) {
     await interaction.reply({
@@ -71,6 +75,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       username: targetUser.username,
       newTotal,
       givenBy: interaction.user.id,
+      reason,
     });
 
     const embed = new EmbedBuilder()
@@ -79,7 +84,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .addFields(
         { name: "Member", value: `<@${targetUser.id}>`, inline: true },
         { name: "Previous Total", value: String(result.previousTotal), inline: true },
-        { name: "New Total", value: String(result.newTotal), inline: true }
+        { name: "New Total", value: String(result.newTotal), inline: true },
+        { name: "Reason", value: reason?.trim() || "Manual Merit Set", inline: false }
       );
 
     if (result.newTotal !== newTotal) {

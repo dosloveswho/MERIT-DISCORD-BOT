@@ -79,13 +79,14 @@ async function awardAutomaticMerit(params) {
     return result;
 }
 /**
- * Applies a manual merit adjustment via /setmerit. Not idempotent by
+ * Applies a manual merit adjustment via /addmerit. Not idempotent by
  * design (each invocation is a distinct, intentional admin action), but
  * still routed through the same atomic RPC so total_merits is never
  * corrupted by concurrent writes.
  */
 async function applyManualMerit(params) {
-    const reason = params.amount >= 0 ? config_1.MERIT_REASONS.manual : config_1.MERIT_REASONS.manual_adjustment;
+    const reason = params.reason?.trim() ||
+        (params.amount >= 0 ? config_1.MERIT_REASONS.manual : config_1.MERIT_REASONS.manual_adjustment);
     const result = await databaseService_1.databaseService.awardMerit({
         discordUserId: params.discordUserId,
         username: params.username,
@@ -112,17 +113,18 @@ async function applyManualMerit(params) {
  * corrupted by concurrent writes.
  */
 async function setManualMerit(params) {
+    const reason = params.reason?.trim() || config_1.MERIT_REASONS.manual_set;
     const result = await databaseService_1.databaseService.setMerit({
         discordUserId: params.discordUserId,
         username: params.username,
         newTotal: params.newTotal,
-        reason: config_1.MERIT_REASONS.manual_set,
+        reason,
         givenBy: params.givenBy,
     });
     await (0, meritLogger_1.logManualMerit)(params.client, {
         discordUserId: params.discordUserId,
         amount: result.actualAmount,
-        reason: config_1.MERIT_REASONS.manual_set,
+        reason,
         givenBy: params.givenBy,
         previousTotal: result.previousTotal,
         newTotal: result.newTotal,

@@ -31,6 +31,7 @@ async function execute(interaction) {
             username,
             amount,
             givenBy: interaction.user.id,
+            reason,
         });
         await interaction.editReply({
             content: `✅ Added **+${result.actualAmount}** merits to <@${targetUser.id}>.\nNew total: **${result.newTotal}**\nReason: ${reason}`,

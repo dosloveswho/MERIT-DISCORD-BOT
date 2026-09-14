@@ -15,7 +15,8 @@ exports.data = new discord_js_1.SlashCommandBuilder()
     .setName("total")
     .setDescription("The exact merit total this member should have")
     .setRequired(true)
-    .setMinValue(0));
+    .setMinValue(0))
+    .addStringOption((option) => option.setName("reason").setDescription("Reason for setting this total").setRequired(false));
 async function execute(interaction) {
     const member = interaction.member;
     if (!(0, permissions_1.hasMeritManagerRole)(member)) {
@@ -27,6 +28,7 @@ async function execute(interaction) {
     }
     const targetUser = interaction.options.getUser("user", true);
     const newTotal = interaction.options.getInteger("total", true);
+    const reason = interaction.options.getString("reason");
     if (!Number.isInteger(newTotal)) {
         await interaction.reply({
             content: "❌ Please provide a whole number total.",
@@ -56,11 +58,12 @@ async function execute(interaction) {
             username: targetUser.username,
             newTotal,
             givenBy: interaction.user.id,
+            reason,
         });
         const embed = new discord_js_1.EmbedBuilder()
             .setTitle("🏅 Merit Set")
             .setColor(0x3498db)
-            .addFields({ name: "Member", value: `<@${targetUser.id}>`, inline: true }, { name: "Previous Total", value: String(result.previousTotal), inline: true }, { name: "New Total", value: String(result.newTotal), inline: true });
+            .addFields({ name: "Member", value: `<@${targetUser.id}>`, inline: true }, { name: "Previous Total", value: String(result.previousTotal), inline: true }, { name: "New Total", value: String(result.newTotal), inline: true }, { name: "Reason", value: reason?.trim() || "Manual Merit Set", inline: false });
         if (result.newTotal !== newTotal) {
             embed.setFooter({
                 text: `Requested ${newTotal}, but total merits cannot go below 0. Adjusted to ${result.newTotal}.`,

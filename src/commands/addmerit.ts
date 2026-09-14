@@ -40,6 +40,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       username,
       amount,
       givenBy: interaction.user.id,
+      reason,
     });
 
     await interaction.editReply({
