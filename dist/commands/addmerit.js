@@ -13,7 +13,7 @@ exports.data = new discord_js_1.SlashCommandBuilder()
     .addIntegerOption(option => option.setName("amount").setDescription("Amount of merits to add (positive only)").setRequired(true).setMinValue(1))
     .addStringOption(option => option.setName("reason").setDescription("Reason for the merit award").setRequired(false));
 async function execute(interaction) {
-    const member = interaction.member;
+    const member = await interaction.guild?.members.fetch(interaction.user.id).catch(() => null) ?? null;
     if (!(0, permissions_1.hasMeritManagerRole)(member)) {
         await interaction.reply({ content: "❌ You do not have permission to use this command.", ephemeral: true });
         return;

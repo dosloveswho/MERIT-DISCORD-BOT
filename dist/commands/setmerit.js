@@ -18,7 +18,7 @@ exports.data = new discord_js_1.SlashCommandBuilder()
     .setMinValue(0))
     .addStringOption((option) => option.setName("reason").setDescription("Reason for setting this total").setRequired(false));
 async function execute(interaction) {
-    const member = interaction.member;
+    const member = await interaction.guild?.members.fetch(interaction.user.id).catch(() => null) ?? null;
     if (!(0, permissions_1.hasMeritManagerRole)(member)) {
         await interaction.reply({
             content: "❌ You do not have permission to use this command.",
